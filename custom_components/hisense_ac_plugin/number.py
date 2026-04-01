@@ -10,7 +10,7 @@ from homeassistant.components.number import NumberEntity, NumberDeviceClass, Num
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.core import Event
@@ -203,6 +203,7 @@ async def async_setup_entry(
             if isinstance(device, HisenseDeviceInfo) and device.is_devices():
                 parser = coordinator.api_client.parsers.get(device.device_id)
                 created_keys: set[str] = set()
+                created_zone_indices: set[str] = set()
 
                 # Add numbers for each supported feature
                 for number_type, number_info in NUMBER_TYPES.items():
@@ -225,6 +226,10 @@ async def async_setup_entry(
 
                 # Add dynamic zone damper controls, e.g. t_zone1_damper: 0-100 step 5
                 for number_type, number_info in _build_zone_damper_number_types(parser):
+                    zone_match = re.search(r"zone_(\d+)_damper", number_type)
+                    zone_idx = zone_match.group(1) if zone_match else None
+                    if zone_idx and zone_idx in created_zone_indices:
+                        continue
                     if device.has_attribute(number_info["key"], parser):
                         entity = HisenseNumber(
                             coordinator,
@@ -234,9 +239,15 @@ async def async_setup_entry(
                         )
                         entities.append(entity)
                         created_keys.add(number_info["key"])
+                        if zone_idx:
+                            created_zone_indices.add(zone_idx)
 
                 # Fallback: create zone damper entities from status if parser metadata is missing.
                 for number_type, number_info in _build_zone_damper_from_status(device):
+                    zone_match = re.search(r"zone_(\d+)_damper", number_type)
+                    zone_idx = zone_match.group(1) if zone_match else None
+                    if zone_idx and zone_idx in created_zone_indices:
+                        continue
                     if number_info["key"] in created_keys:
                         continue
                     entity = HisenseNumber(
@@ -246,6 +257,8 @@ async def async_setup_entry(
                         number_info,
                     )
                     entities.append(entity)
+                    if zone_idx:
+                        created_zone_indices.add(zone_idx)
             else:
                 _LOGGER.warning(
                     "Skipping unsupported device: %s-%s (%s)",
@@ -285,6 +298,7 @@ class HisenseNumber(CoordinatorEntity, NumberEntity):
         # [ModeType.ONLY_DHW] 制热水
         [None, None, None, None, 35, 55],
     ]
+    _WATER_TEMP_KEYS = {"t_zone1water_settemp1", "t_zone2water_settemp2"}
 
     def __init__(
         self,
@@ -300,7 +314,12 @@ class HisenseNumber(CoordinatorEntity, NumberEntity):
         self._number_type = number_type
         self._number_info = number_info
         self._number_key = number_info["key"]
-        self._attr_unique_id = f"{device.device_id}_{number_type}"
+        key_lower = self._number_key.lower()
+        if "zone" in key_lower:
+            # Keep a stable unique_id based on raw key to avoid duplicate entities after upgrades.
+            self._attr_unique_id = f"{device.device_id}_{self._number_key}"
+        else:
+            self._attr_unique_id = f"{device.device_id}_{number_type}"
         self._attr_name = number_info["name"]
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, device.device_id)},
@@ -316,6 +335,10 @@ class HisenseNumber(CoordinatorEntity, NumberEntity):
         self._attr_native_max_value = float(number_info.get("max_value"))
         self._attr_native_step = float(number_info.get("step"))
         self._attr_entity_registry_enabled_default = True
+        key_lower = self._number_key.lower()
+        if "zone" in key_lower:
+            # Keep zone controls in the config section to avoid cluttering primary controls order.
+            self._attr_entity_category = EntityCategory.CONFIG
 
         # 初始化时更新一次温度范围
         self._cached_device = None
@@ -364,6 +387,10 @@ class HisenseNumber(CoordinatorEntity, NumberEntity):
 
     def _update_temperature_range(self):
         """Update the temperature range based on the current mode and feature_code."""
+        # Only water-temperature entities should use mode-based temperature limits.
+        if self._number_key not in self._WATER_TEMP_KEYS:
+            return
+
         device = self.coordinator.get_device(self._device_id)
         if not device:
             return
@@ -397,6 +424,10 @@ class HisenseNumber(CoordinatorEntity, NumberEntity):
     @property
     def available(self) -> bool:
         """Return if entity is available."""
+        # Zone damper controls should remain available when device is online.
+        if self._number_key not in self._WATER_TEMP_KEYS:
+            return bool(self._device and self._device.is_online)
+
         # 基础可用性检查（设备在线）
         if not self._device or not self._device.is_online:
             return False
