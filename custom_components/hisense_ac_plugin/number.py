@@ -300,6 +300,14 @@ class HisenseNumber(CoordinatorEntity, NumberEntity):
     ]
     _WATER_TEMP_KEYS = {"t_zone1water_settemp1", "t_zone2water_settemp2"}
 
+    def _is_zone_damper(self) -> bool:
+        key_lower = self._number_key.lower()
+        if "zone" not in key_lower:
+            return False
+        if self._number_key in self._WATER_TEMP_KEYS:
+            return False
+        return self._attr_native_unit_of_measurement == "%"
+
     def __init__(
         self,
         coordinator: HisenseACPluginDataUpdateCoordinator,
@@ -339,6 +347,8 @@ class HisenseNumber(CoordinatorEntity, NumberEntity):
         if "zone" in key_lower:
             # Keep zone controls in the config section to avoid cluttering primary controls order.
             self._attr_entity_category = EntityCategory.CONFIG
+        if self._is_zone_damper():
+            self._attr_suggested_display_precision = 0
 
         # 初始化时更新一次温度范围
         self._cached_device = None
@@ -365,6 +375,18 @@ class HisenseNumber(CoordinatorEntity, NumberEntity):
             return f"Zone {zone_idx} Damper"
 
         translated_name = self._number_info["name"]
+
+        if self._is_zone_damper():
+            raw_value = None
+            if self._device:
+                raw_value = self._device.get_status_value(self._number_key)
+            if raw_value is not None:
+                try:
+                    percent = int(float(raw_value))
+                    return f"{translated_name} ({percent}%)"
+                except (TypeError, ValueError):
+                    return translated_name
+
         return translated_name
 
     @property
