@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import Any, Callable
 
 from homeassistant.components.number import NumberEntity, NumberDeviceClass, NumberMode
@@ -50,6 +51,73 @@ NUMBER_TYPES = {
     }
 }
 
+
+def _extract_numeric_range(value_range: str) -> tuple[float, float] | None:
+    """Extract the first numeric range from value_range like '0~100,16~30'."""
+    if not value_range:
+        return None
+
+    for item in value_range.split(","):
+        item = item.strip()
+        if "~" not in item:
+            continue
+        try:
+            min_str, max_str = [part.strip() for part in item.split("~", 1)]
+            return float(min_str), float(max_str)
+        except (TypeError, ValueError):
+            continue
+
+    return None
+
+
+def _build_zone_damper_number_types(parser) -> list[tuple[str, dict[str, Any]]]:
+    """Build number entity definitions for zone damper control (0-100%)."""
+    entities: list[tuple[str, dict[str, Any]]] = []
+    if not parser:
+        return entities
+
+    attrs = getattr(parser, "attributes", {}) or {}
+    for key, attr in attrs.items():
+        key_lower = key.lower()
+        if "zone" not in key_lower or not key_lower.startswith("t_"):
+            continue
+        if getattr(attr, "read_write", "RW") == "R":
+            continue
+        if getattr(attr, "attr_type", "") != "Number":
+            continue
+
+        value_range = getattr(attr, "value_range", "") or ""
+        numeric_range = _extract_numeric_range(value_range)
+        if not numeric_range:
+            continue
+
+        min_val, max_val = numeric_range
+        if min_val != 0 or max_val != 100:
+            continue
+
+        zone_match = re.search(r"zone_?(\d+)", key_lower)
+        zone_name = f"Zone {zone_match.group(1)}" if zone_match else key.replace("t_", "").replace("_", " ").title()
+
+        step = getattr(attr, "step", 1) or 1
+        if step == 1:
+            step = 5
+
+        number_info = {
+            "key": key,
+            "name": f"{zone_name} Damper",
+            "icon": "mdi:percent",
+            "device_class": None,
+            "mode": NumberMode.SLIDER,
+            "unit": "%",
+            "min_value": 0,
+            "max_value": 100,
+            "step": float(step),
+            "description": f"Set {zone_name} damper opening",
+        }
+        entities.append((f"{key}_damper", number_info))
+
+    return entities
+
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: ConfigEntry,
@@ -72,10 +140,11 @@ async def async_setup_entry(
             _LOGGER.debug("Processing device for numbers: %s", device.to_dict())
 
             if isinstance(device, HisenseDeviceInfo) and device.is_devices():
+                parser = coordinator.api_client.parsers.get(device.device_id)
+
                 # Add numbers for each supported feature
                 for number_type, number_info in NUMBER_TYPES.items():
                     # Check if the device supports this attribute
-                    parser = coordinator.api_client.parsers.get(device.device_id)
                     if device.has_attribute(number_info["key"], parser):
                         if device.status.get("f_zone2_select") == "0" and number_type == "t_zone2water_settemp2":
                             continue
@@ -89,6 +158,17 @@ async def async_setup_entry(
                             device,
                             number_type,
                             number_info
+                        )
+                        entities.append(entity)
+
+                # Add dynamic zone damper controls, e.g. t_zone1_damper: 0-100 step 5
+                for number_type, number_info in _build_zone_damper_number_types(parser):
+                    if device.has_attribute(number_info["key"], parser):
+                        entity = HisenseNumber(
+                            coordinator,
+                            device,
+                            number_type,
+                            number_info,
                         )
                         entities.append(entity)
             else:

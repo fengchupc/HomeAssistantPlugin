@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import datetime
 import logging
+import re
 import time
 from typing import Any, Callable
 
@@ -56,6 +57,56 @@ SWITCH_TYPES = {
     # }
 }
 
+
+def _build_zone_switch_definitions(device: HisenseDeviceInfo, parser) -> list[tuple[str, dict[str, str]]]:
+    """Build dynamic zone switch definitions from parser attributes/status keys."""
+    zone_definitions: list[tuple[str, dict[str, str]]] = []
+    if not parser:
+        return zone_definitions
+
+    attrs = getattr(parser, "attributes", {}) or {}
+
+    for key, attr in attrs.items():
+        key_lower = key.lower()
+        if "zone" not in key_lower:
+            continue
+        if not key_lower.startswith("t_"):
+            continue
+
+        value_range = getattr(attr, "value_range", "") or ""
+        value_map = getattr(attr, "value_map", None)
+        read_write = getattr(attr, "read_write", "RW")
+
+        if read_write == "R":
+            continue
+
+        is_binary_range = value_range in {"0,1", "1,0"}
+        is_binary_map = bool(value_map) and set(value_map.keys()) == {"0", "1"}
+        if not (is_binary_range or is_binary_map):
+            continue
+
+        zone_match = re.search(r"zone_?(\d+)", key_lower)
+        if zone_match:
+            zone_name = f"Zone {zone_match.group(1)}"
+            switch_type = f"zone_{zone_match.group(1)}"
+        else:
+            zone_name = key.replace("t_", "").replace("_", " ").title()
+            switch_type = key_lower
+
+        switch_info = {
+            "key": key,
+            "name": zone_name,
+            "icon_on": "mdi:home-floor-1",
+            "icon_off": "mdi:home-floor-0",
+            "description": f"Toggle {zone_name}",
+        }
+        zone_definitions.append((switch_type, switch_info))
+
+    if zone_definitions:
+        _LOGGER.info("Detected %d zone switch attributes for device %s: %s", len(zone_definitions), device.name, [z[1]["key"] for z in zone_definitions])
+
+    return zone_definitions
+
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: ConfigEntry,
@@ -78,10 +129,11 @@ async def async_setup_entry(
             _LOGGER.debug("Processing device for switches: %s", device.to_dict())
 
             if isinstance(device, HisenseDeviceInfo) and device.is_devices():
+                parser = coordinator.api_client.parsers.get(device.device_id)
+
                 # Add switches for each supported feature
                 for switch_type, switch_info in SWITCH_TYPES.items():
                     # Check if the device supports this attribute
-                    parser = coordinator.api_client.parsers.get(device.device_id)
                     if device.has_attribute(switch_info["key"], parser):
                         _LOGGER.info(
                             "Adding %s switch for device: %s",
@@ -111,6 +163,16 @@ async def async_setup_entry(
                             switch_info
                         )
                         entities.append(entity)
+
+                # Add dynamic zone switches (e.g. t_zone1, t_zone2, ...)
+                for switch_type, switch_info in _build_zone_switch_definitions(device, parser):
+                    entity = HisenseSwitch(
+                        coordinator,
+                        device,
+                        switch_type,
+                        switch_info,
+                    )
+                    entities.append(entity)
 
                 # 新增：处理除湿机风速开关
                 if device.type_code == "007":

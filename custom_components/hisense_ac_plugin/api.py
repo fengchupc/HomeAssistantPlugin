@@ -789,6 +789,65 @@ class HisenseApiClient:
                     )
                     _LOGGER.debug("强制添加了f_power_consumption字段到解析器:%s")
 
+        # Add dynamic zone control attributes from cloud property list.
+        # This enables ducted/zone models with non-predefined keys (e.g. damper 0-100).
+        for prop in propertyList:
+            if not isinstance(prop, dict):
+                continue
+
+            key = prop.get("propertyKey")
+            if not isinstance(key, str) or not key:
+                continue
+            if key in filtered_attributes:
+                continue
+
+            key_lower = key.lower()
+            if "zone" not in key_lower or not key_lower.startswith("t_"):
+                continue
+
+            value_range = str(prop.get("propertyValueList") or "")
+            if not value_range:
+                continue
+
+            read_write_raw = str(
+                prop.get("readWrite")
+                or prop.get("readWriteType")
+                or prop.get("rw")
+                or "RW"
+            ).upper()
+            read_write = "RW" if "W" in read_write_raw else "R"
+
+            attr_type = "Enum"
+            step = 1
+
+            range_values = [item.strip() for item in value_range.split(",") if isinstance(item, str)]
+            numeric_range = next((item for item in range_values if "~" in item), None)
+            if numeric_range:
+                attr_type = "Number"
+                try:
+                    min_str, max_str = [item.strip() for item in numeric_range.split("~", 1)]
+                    min_val = float(min_str)
+                    max_val = float(max_str)
+
+                    cloud_step = prop.get("step") or prop.get("propertyStep") or prop.get("propertyStepValue")
+                    if cloud_step is not None:
+                        step = int(float(cloud_step))
+                    elif min_val == 0 and max_val == 100:
+                        step = 5
+                except (TypeError, ValueError):
+                    step = 1
+
+            filtered_attributes[key] = DeviceAttribute(
+                key=key,
+                name=str(prop.get("propertyName") or key),
+                attr_type=attr_type,
+                step=step,
+                value_range=value_range,
+                value_map=None,
+                read_write=read_write,
+            )
+            _LOGGER.debug("Added dynamic zone attribute: %s (%s, range=%s, step=%s)", key, attr_type, value_range, step)
+
         _LOGGER.debug("filtered_attributes content: %s", filtered_attributes)
         # 创建一个新的BaseBeanParser对象，并将filtered_attributes赋值给它的attributes属性
         new_parser = BaseBeanParser()
