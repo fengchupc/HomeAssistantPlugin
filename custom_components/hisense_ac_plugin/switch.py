@@ -11,7 +11,7 @@ from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.core import Event
@@ -347,6 +347,10 @@ class HisenseSwitch(CoordinatorEntity, SwitchEntity):
         self._attr_icon = switch_info["icon_off"]
         self._attr_entity_registry_enabled_default = True
         self._expected_value = expected_value  # 新增属性
+        key_lower = self._switch_key.lower()
+        if "zone" in key_lower:
+            # Keep zone switches in config section to avoid pushing core modes to bottom.
+            self._attr_entity_category = EntityCategory.CONFIG
 
     async def async_added_to_hass(self):
         """当实体被添加到 Home Assistant 时调用。"""
@@ -426,14 +430,8 @@ class HisenseSwitch(CoordinatorEntity, SwitchEntity):
     @property
     def available(self) -> bool:
         """Return if entity is available."""
-        if not self._device:
-            return False
-        # Zone switches should remain available when the device is online,
-        # even if the main AC power is off.
-        if "zone" in self._switch_key.lower():
-            return self._device.is_online
-        _LOGGER.info("设备 %s 是否可用: %s", self.feature_code, self._device.is_onOff)
-        if not self._device.is_online or not self._device.is_onOff:
+        _LOGGER.info("设备 %s 是否可用: %s", self.feature_code, self._device.is_onOff)  # 调用方法并获取返回值
+        if not self._device or not self._device.is_online or not self._device.is_onOff:
             return False
 
         # Check if the switch should be hidden based on the current mode
