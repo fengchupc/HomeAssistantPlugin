@@ -118,6 +118,46 @@ def _build_zone_damper_number_types(parser) -> list[tuple[str, dict[str, Any]]]:
 
     return entities
 
+
+def _build_zone_damper_from_status(device: HisenseDeviceInfo) -> list[tuple[str, dict[str, Any]]]:
+    """Fallback builder: infer zone damper keys from live status values."""
+    entities: list[tuple[str, dict[str, Any]]] = []
+    status = device.status or {}
+
+    for key, value in status.items():
+        key_lower = str(key).lower()
+        if "zone" not in key_lower or not key_lower.startswith("t_"):
+            continue
+        if "temp" in key_lower or "humidity" in key_lower:
+            continue
+
+        try:
+            numeric_value = float(value)
+        except (TypeError, ValueError):
+            continue
+
+        if numeric_value < 0 or numeric_value > 100:
+            continue
+
+        zone_match = re.search(r"zone_?(\d+)", key_lower)
+        zone_name = f"Zone {zone_match.group(1)}" if zone_match else key.replace("t_", "").replace("_", " ").title()
+
+        number_info = {
+            "key": key,
+            "name": f"{zone_name} Damper",
+            "icon": "mdi:percent",
+            "device_class": None,
+            "mode": NumberMode.SLIDER,
+            "unit": "%",
+            "min_value": 0,
+            "max_value": 100,
+            "step": 5.0,
+            "description": f"Set {zone_name} damper opening",
+        }
+        entities.append((f"{key}_damper", number_info))
+
+    return entities
+
 async def async_setup_entry(
     hass: HomeAssistant,
     config_entry: ConfigEntry,
@@ -141,6 +181,7 @@ async def async_setup_entry(
 
             if isinstance(device, HisenseDeviceInfo) and device.is_devices():
                 parser = coordinator.api_client.parsers.get(device.device_id)
+                created_keys: set[str] = set()
 
                 # Add numbers for each supported feature
                 for number_type, number_info in NUMBER_TYPES.items():
@@ -171,6 +212,19 @@ async def async_setup_entry(
                             number_info,
                         )
                         entities.append(entity)
+                        created_keys.add(number_info["key"])
+
+                # Fallback: create zone damper entities from status if parser metadata is missing.
+                for number_type, number_info in _build_zone_damper_from_status(device):
+                    if number_info["key"] in created_keys:
+                        continue
+                    entity = HisenseNumber(
+                        coordinator,
+                        device,
+                        number_type,
+                        number_info,
+                    )
+                    entities.append(entity)
             else:
                 _LOGGER.warning(
                     "Skipping unsupported device: %s-%s (%s)",

@@ -65,6 +65,7 @@ def _build_zone_switch_definitions(device: HisenseDeviceInfo, parser) -> list[tu
         return zone_definitions
 
     attrs = getattr(parser, "attributes", {}) or {}
+    seen_keys: set[str] = set()
 
     for key, attr in attrs.items():
         key_lower = key.lower()
@@ -101,6 +102,38 @@ def _build_zone_switch_definitions(device: HisenseDeviceInfo, parser) -> list[tu
             "description": f"Toggle {zone_name}",
         }
         zone_definitions.append((switch_type, switch_info))
+        seen_keys.add(key)
+
+    # Fallback: discover binary zone toggles from live status keys.
+    for key, value in (device.status or {}).items():
+        if key in seen_keys:
+            continue
+
+        key_lower = str(key).lower()
+        if "zone" not in key_lower or not key_lower.startswith("t_"):
+            continue
+
+        normalized = str(value)
+        if normalized not in {"0", "1"}:
+            continue
+
+        zone_match = re.search(r"zone_?(\d+)", key_lower)
+        if zone_match:
+            zone_name = f"Zone {zone_match.group(1)}"
+            switch_type = f"zone_{zone_match.group(1)}"
+        else:
+            zone_name = key.replace("t_", "").replace("_", " ").title()
+            switch_type = key_lower
+
+        switch_info = {
+            "key": key,
+            "name": zone_name,
+            "icon_on": "mdi:home-floor-1",
+            "icon_off": "mdi:home-floor-0",
+            "description": f"Toggle {zone_name}",
+        }
+        zone_definitions.append((switch_type, switch_info))
+        seen_keys.add(key)
 
     if zone_definitions:
         _LOGGER.info("Detected %d zone switch attributes for device %s: %s", len(zone_definitions), device.name, [z[1]["key"] for z in zone_definitions])
