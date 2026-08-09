@@ -56,10 +56,10 @@ SWITCH_TYPES = {
     },
     "purifier_mode": {
         "key": StatusKey.PURIFY,
-        "name": "Purifier",
-        "icon_on": "mdi:air-purifier",
-        "icon_off": "mdi:air-purifier-off",
-        "description": "Toggle purifier mode"
+        "name": "Health mode",
+        "icon_on": "mdi:heart-pulse",
+        "icon_off": "mdi:heart-off",
+        "description": "Toggle health mode"
     },
     "sleep_mode": {
         "key": StatusKey.SLEEP,
@@ -67,13 +67,6 @@ SWITCH_TYPES = {
         "icon_on": "mdi:sleep",
         "icon_off": "mdi:sleep-off",
         "description": "Toggle sleep mode"
-    },
-    "health_mode": {
-        "key": StatusKey.HEALTH,
-        "name": "Health mode",
-        "icon_on": "mdi:heart-pulse",
-        "icon_off": "mdi:heart-off",
-        "description": "Toggle health mode"
     }
 }
 
@@ -194,7 +187,7 @@ async def async_setup_entry(
                 parser = coordinator.api_client.parsers.get(device.device_id)
 
                 # Add switches for each supported feature
-                preset_switches = {"eco_mode", "quiet_mode", "8heat_mode", "purifier_mode", "sleep_mode", "health_mode"}
+                preset_switches = {"eco_mode", "quiet_mode", "8heat_mode", "purifier_mode", "sleep_mode"}
                 for switch_type, switch_info in SWITCH_TYPES.items():
                     if switch_type not in preset_switches and not device.has_attribute(switch_info["key"], parser):
                         continue

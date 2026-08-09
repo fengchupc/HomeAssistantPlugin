@@ -61,7 +61,7 @@ class BaseBeanParser(BaseDeviceParser):
                     name="设置温度",
                     attr_type="Number",
                     step=1,
-                    value_range="16~32,61~90",
+                    value_range="16~30,61~90",
                     read_write="RW"
                 ),
                 "t_fan_speed": DeviceAttribute(
@@ -190,7 +190,7 @@ class BaseBeanParser(BaseDeviceParser):
                 ),
                 "t_purify": DeviceAttribute(
                     key="t_purify",
-                    name="净化模式",
+                    name="健康模式",
                     attr_type="Enum",
                     step=1,
                     value_range="0,1",

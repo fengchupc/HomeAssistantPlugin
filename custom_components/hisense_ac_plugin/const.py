@@ -116,7 +116,6 @@ class StatusKey:
     EIGHTHEAT = "t_8heat"  # 8°加热
     ECO = "t_eco"
     SLEEP = "t_sleep"
-    HEALTH = "t_health"
     PURIFY = "t_purify"
     EIGHT_HEAT = "t_8_heat"
     ENERGY = "f_electricity"  # Changed to match actual API response
