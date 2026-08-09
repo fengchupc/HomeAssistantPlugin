@@ -126,7 +126,6 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
             | ClimateEntityFeature.SWING_MODE
             | ClimateEntityFeature.TURN_ON
             | ClimateEntityFeature.TURN_OFF
-            | ClimateEntityFeature.PRESET_MODE
     )
 
     def __init__(
@@ -146,8 +145,6 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
         self._cached_hvac_mode = HVACMode.OFF
         self._cached_fan_mode = None
         self._cached_swing_mode = SWING_OFF
-        self._attr_preset_mode = None
-        self._attr_preset_modes = ["eco", "sleep", "health"]
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, device.device_id)},
             name=device.name,
@@ -171,7 +168,6 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
                 self._setup_hvac_modes()
                 self._setup_fan_modes()
                 self._setup_swing_modes()
-                self._setup_preset_modes()
             except Exception as err:
                 _LOGGER.error("Failed to get device parser: %s", err)
                 self._parser = None
@@ -241,13 +237,6 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
         if not hasattr(self, '_attr_swing_modes'):
             self._attr_swing_modes = [SWING_OFF, SWING_VERTICAL]
 
-    # async def async_set_preset_mode(self, preset_mode: str) -> None:
-    #     """设置预设模式。"""
-    #     if preset_mode not in self.preset_modes:
-    #         raise ValueError(f"Invalid preset mode: {preset_mode}")
-    #     self._attr_preset_mode = preset_mode
-    #     self.async_write_ha_state()
-
     def _setup_hvac_modes(self):
         """Set up available HVAC modes based on device capabilities."""
         if not self._parser:
@@ -282,24 +271,6 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
             if mode in available_modes:
                 modes.append(mode)
         self._attr_hvac_modes = modes
-
-    def _setup_preset_modes(self):
-        """Set up available preset modes based on device capabilities."""
-        self._attr_preset_modes = ["eco", "sleep", "health"]
-
-        if not self._parser:
-            return
-
-        supported_presets = []
-        if self._parser.attributes.get(StatusKey.ECO):
-            supported_presets.append("eco")
-        if self._parser.attributes.get(StatusKey.QUIET):
-            supported_presets.append("sleep")
-        if self._parser.attributes.get(StatusKey.EIGHTHEAT):
-            supported_presets.append("health")
-
-        if supported_presets:
-            self._attr_preset_modes = supported_presets
 
     def _setup_fan_modes(self):
         """Set up available fan modes based on device capabilities."""
@@ -502,31 +473,6 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
             if FAN_AUTO not in modes and self.hasAuto:
                 modes.append(FAN_AUTO)
         return modes
-    @property
-    def preset_mode(self) -> str | None:
-        if time.time() - self._last_command_time < self.wait_time and self._attr_preset_mode is not None:
-            return self._attr_preset_mode
-        if not self._device:
-            return None
-
-        def _is_enabled(value: Any) -> bool:
-            if value in (None, "", False):
-                return False
-            if isinstance(value, bool):
-                return value
-            if isinstance(value, (int, float)):
-                return value != 0
-            if isinstance(value, str):
-                return value.strip().lower() in {"1", "true", "yes", "on", "enable", "enabled"}
-            return bool(value)
-
-        if _is_enabled(self._device.get_status_value(StatusKey.ECO)):
-            return "eco"
-        if _is_enabled(self._device.get_status_value(StatusKey.QUIET)):
-            return "sleep"
-        if _is_enabled(self._device.get_status_value(StatusKey.EIGHTHEAT)):
-            return "health"
-        return None
 
     @property
     def swing_mode(self) -> str | None:
@@ -566,7 +512,6 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
                 | ClimateEntityFeature.SWING_MODE
                 | ClimateEntityFeature.TURN_ON
                 | ClimateEntityFeature.TURN_OFF
-                | ClimateEntityFeature.PRESET_MODE
         )
 
         # 新增类型检查：仅type为009的设备支持风向功能
@@ -734,47 +679,6 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
             )
         except Exception as err:
             _LOGGER.error("Failed to set fan mode: %s", err)
-
-    async def async_set_preset_mode(self, preset_mode: str) -> None:
-        """Set a preset mode for the climate entity."""
-        self._attr_preset_mode = preset_mode
-        self._last_command_time = time.time()
-        self.async_write_ha_state()
-
-        try:
-            if not self._device:
-                return
-
-            if self._device.get_status_value(StatusKey.POWER) in (None, "0"):
-                await self.async_turn_on()
-
-            properties: dict[str, str] = {}
-            if preset_mode == "eco":
-                properties[StatusKey.ECO] = "1"
-                properties[StatusKey.QUIET] = "0"
-                properties[StatusKey.EIGHTHEAT] = "0"
-            elif preset_mode == "sleep":
-                properties[StatusKey.QUIET] = "1"
-                properties[StatusKey.ECO] = "0"
-                properties[StatusKey.EIGHTHEAT] = "0"
-            elif preset_mode == "health":
-                properties[StatusKey.EIGHTHEAT] = "1"
-                properties[StatusKey.ECO] = "0"
-                properties[StatusKey.QUIET] = "0"
-            elif preset_mode in {None, "none", "off"}:
-                properties[StatusKey.ECO] = "0"
-                properties[StatusKey.QUIET] = "0"
-                properties[StatusKey.EIGHTHEAT] = "0"
-            else:
-                return
-
-            if properties:
-                await self.coordinator.async_control_device(
-                    puid=self._device_id,
-                    properties=properties,
-                )
-        except Exception as err:
-            _LOGGER.error("Failed to set preset mode: %s", err)
 
     async def async_set_swing_mode(self, swing_mode: str) -> None:
         # 更新缓存和时间戳

@@ -173,37 +173,30 @@ async def async_setup_entry(
                 parser = coordinator.api_client.parsers.get(device.device_id)
 
                 # Add switches for each supported feature
+                preset_switches = {"eco_mode", "quiet_mode", "8heat_mode"}
                 for switch_type, switch_info in SWITCH_TYPES.items():
-                    # Check if the device supports this attribute
-                    if device.has_attribute(switch_info["key"], parser):
-                        _LOGGER.info(
-                            "Adding %s switch for device: %s",
-                            switch_info["name"],
-                            device.name
-                        )
-                        static_data = coordinator.api_client.static_data.get(device.device_id)
-                        # eco/sleep/health always register if parser has the key
-                        preset_switches = {"eco_mode", "quiet_mode", "8heat_mode"}
-                        if switch_type not in preset_switches:
-                            if static_data:
-                                rapid_mode = static_data.get("Super_function")
-                                if switch_type == "rapid_mode" and rapid_mode != "1":
-                                    continue
-                            else:
-                                if not device.status.get(switch_info["key"]):
-                                    continue
-                        _LOGGER.info("当前设备: %s: %s",device.feature_code,device.status)
-                        #跟cl对齐，去掉200的静音
-                        if switch_type == "quiet_mode":
-                            if device.feature_code == 200 or device.feature_code == "200":
+                    if switch_type not in preset_switches and not device.has_attribute(switch_info["key"], parser):
+                        continue
+
+                    static_data = coordinator.api_client.static_data.get(device.device_id)
+                    if switch_type not in preset_switches:
+                        if static_data:
+                            if switch_type == "rapid_mode" and static_data.get("Super_function") != "1":
                                 continue
-                        entity = HisenseSwitch(
-                            coordinator,
-                            device,
-                            switch_type,
-                            switch_info
-                        )
-                        entities.append(entity)
+                        else:
+                            if not device.status.get(switch_info["key"]):
+                                continue
+
+                    if switch_type == "quiet_mode" and device.feature_code in (200, "200"):
+                        continue
+
+                    entity = HisenseSwitch(
+                        coordinator,
+                        device,
+                        switch_type,
+                        switch_info
+                    )
+                    entities.append(entity)
 
                 # Add dynamic zone switches (e.g. t_zone1, t_zone2, ...)
                 for switch_type, switch_info in _build_zone_switch_definitions(device, parser):
