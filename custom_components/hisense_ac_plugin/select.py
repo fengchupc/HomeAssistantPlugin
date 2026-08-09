@@ -17,23 +17,8 @@ from .models import DeviceInfo as HisenseDeviceInfo
 
 _LOGGER = logging.getLogger(__name__)
 
-# Default option map used when the filtered parser has no value_map
-_SLEEP_DEFAULT_OPTIONS: dict[str, str] = {
-    "0": "Off",
-    "1": "General",
-    "2": "For kid",
-    "3": "For old",
-    "4": "For young",
-}
-
-SELECT_TYPES: dict[str, dict[str, Any]] = {
-    "sleep_mode": {
-        "key": "t_sleep",
-        "name": "Sleep mode",
-        "icon": "mdi:sleep",
-        "default_options": _SLEEP_DEFAULT_OPTIONS,
-    }
-}
+# Sleep mode is a binary switch on this device; SELECT_TYPES is intentionally empty.
+SELECT_TYPES: dict[str, dict] = {}
 
 
 async def async_setup_entry(
