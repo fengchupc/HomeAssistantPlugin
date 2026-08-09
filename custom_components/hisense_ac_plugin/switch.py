@@ -28,28 +28,28 @@ _LOGGER = logging.getLogger(__name__)
 SWITCH_TYPES = {
     "quiet_mode": {
         "key": StatusKey.QUIET,
-        "name": "Quiet Mode",
+        "name": "Quiet mode",
         "icon_on": "mdi:volume-off",
         "icon_off": "mdi:volume-high",
         "description": "Toggle quiet mode"
     },
     "rapid_mode": {
         "key": StatusKey.RAPID,
-        "name": "Rapid Mode",
+        "name": "Powerful mode",
         "icon_on": "mdi:speedometer",
         "icon_off": "mdi:speedometer-slow",
-        "description": "Toggle rapid (powerful) mode"
+        "description": "Toggle powerful mode"
     },
     "8heat_mode": {
         "key": StatusKey.EIGHTHEAT,
-        "name": "8heat Mode",
+        "name": "8° heat",
         "icon_on": "mdi:fire",
         "icon_off": "mdi:fire-off",
-        "description": "Toggle 8heat mode"
+        "description": "Toggle 8° heat mode"
     },
     "eco_mode": {
         "key": StatusKey.ECO,
-        "name": "Eco Mode",
+        "name": "Eco mode",
         "icon_on": "mdi:leaf",
         "icon_off": "mdi:leaf-off",
         "description": "Toggle eco mode"
