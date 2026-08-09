@@ -217,6 +217,7 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
             else:
                 min_temp = MIN_TEMP
                 max_temp = MAX_TEMP
+            max_temp = min(max_temp, MAX_TEMP)  # cloud API may report higher cap; enforce our limit
             self._attr_temperature_unit = UnitOfTemperature.CELSIUS
         else:
             # 使用第二个范围
