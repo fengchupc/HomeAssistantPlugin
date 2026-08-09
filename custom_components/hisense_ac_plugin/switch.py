@@ -46,15 +46,14 @@ SWITCH_TYPES = {
         "icon_on": "mdi:fire",
         "icon_off": "mdi:fire-off",
         "description": "Toggle 8heat mode"
+    },
+    "eco_mode": {
+        "key": StatusKey.ECO,
+        "name": "Eco Mode",
+        "icon_on": "mdi:leaf",
+        "icon_off": "mdi:leaf-off",
+        "description": "Toggle eco mode"
     }
-    # ,
-    # "eco_mode": {
-    #     "key": StatusKey.ECO,
-    #     "name": "Eco Mode",
-    #     "icon_on": "mdi:leaf",
-    #     "icon_off": "mdi:leaf-off",
-    #     "description": "Toggle eco mode"
-    # }
 }
 
 

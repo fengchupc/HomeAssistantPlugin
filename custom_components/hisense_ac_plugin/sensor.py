@@ -839,22 +839,22 @@ class HisenseSensor(CoordinatorEntity, SensorEntity):
             return None
 
         if self._sensor_type == "panel_temperature":
-            value, source = resolve_current_temperature(self._device)
-            if source == "t_temp_in" and value is not None:
-                return value
-            if source in {"f_temp_in", "f_temp", "t_temp"} and value is not None:
+            raw = self._device.get_status_value("t_temp_in")
+            if raw is None:
                 return None
-            return None
+            try:
+                return float(raw)
+            except (TypeError, ValueError):
+                return None
 
         if self._sensor_type == "indoor_temperature":
-            value, source = resolve_current_temperature(self._device)
-            if source == "f_temp_in" and value is not None:
-                return value
-            if source == "t_temp_in" and value is not None:
+            raw = self._device.get_status_value("f_temp_in")
+            if raw is None:
                 return None
-            if value is not None:
-                return value
-            return None
+            try:
+                return float(raw)
+            except (TypeError, ValueError):
+                return None
 
         value = self._device.get_status_value(self._sensor_key)
         if value is None:
