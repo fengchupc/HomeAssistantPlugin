@@ -509,11 +509,22 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
         if not self._device:
             return None
 
-        if self._device.get_status_value(StatusKey.ECO) == "1":
+        def _is_enabled(value: Any) -> bool:
+            if value in (None, "", False):
+                return False
+            if isinstance(value, bool):
+                return value
+            if isinstance(value, (int, float)):
+                return value != 0
+            if isinstance(value, str):
+                return value.strip().lower() in {"1", "true", "yes", "on", "enable", "enabled"}
+            return bool(value)
+
+        if _is_enabled(self._device.get_status_value(StatusKey.ECO)):
             return "eco"
-        if self._device.get_status_value(StatusKey.QUIET) == "1":
+        if _is_enabled(self._device.get_status_value(StatusKey.QUIET)):
             return "sleep"
-        if self._device.get_status_value(StatusKey.EIGHTHEAT) == "1":
+        if _is_enabled(self._device.get_status_value(StatusKey.EIGHTHEAT)):
             return "health"
         return None
 

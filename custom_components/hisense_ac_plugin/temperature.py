@@ -14,14 +14,30 @@ def resolve_current_temperature(device: Any) -> tuple[float | None, str | None]:
     if device is None:
         return None, None
 
-    candidates = ["t_temp_in", "f_temp_in", "f_temp", "t_temp"]
-    for key in candidates:
-        value = device.get_status_value(key)
-        if value in (None, ""):
-            continue
+    def _coerce_float(value: Any) -> float | None:
+        if value in (None, "", False):
+            return None
+        if isinstance(value, bool):
+            return None
+        if isinstance(value, (int, float)):
+            return float(value)
+        if isinstance(value, str):
+            text = value.strip()
+            if not text:
+                return None
+            try:
+                return float(text)
+            except ValueError:
+                return None
         try:
-            return float(value), key
+            return float(value)
         except (TypeError, ValueError):
-            continue
+            return None
+
+    for key in ("t_temp_in", "f_temp_in", "f_temp", "t_temp"):
+        value = device.get_status_value(key)
+        parsed = _coerce_float(value)
+        if parsed is not None:
+            return parsed, key
 
     return None, None
