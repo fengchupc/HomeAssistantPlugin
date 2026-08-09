@@ -173,6 +173,30 @@ class BaseBeanParser(BaseDeviceParser):
                     },
                     read_write="RW"
                 ),
+                "t_sleep": DeviceAttribute(
+                    key="t_sleep",
+                    name="睡眠模式",
+                    attr_type="Enum",
+                    step=1,
+                    value_range="0,1",
+                    value_map={
+                        "0": "关闭",
+                        "1": "开启"
+                    },
+                    read_write="RW"
+                ),
+                "t_health": DeviceAttribute(
+                    key="t_health",
+                    name="健康模式",
+                    attr_type="Enum",
+                    step=1,
+                    value_range="0,1",
+                    value_map={
+                        "0": "关闭",
+                        "1": "开启"
+                    },
+                    read_write="RW"
+                ),
                 "t_humidity": DeviceAttribute(
                     key="t_humidity",
                     name="设定湿度值",
