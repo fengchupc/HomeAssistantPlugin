@@ -182,16 +182,16 @@ async def async_setup_entry(
                             device.name
                         )
                         static_data = coordinator.api_client.static_data.get(device.device_id)
-                        if static_data:
-                            rapid_mode = static_data.get("Super_function")
-                            quiet_mode = static_data.get("Mute_mode_function")
-                            if switch_type == "rapid_mode" and rapid_mode != "1":
-                                continue
-                            if switch_type == "quiet_mode" and quiet_mode != "1":
-                                continue
-                        else:
-                            if not device.status.get(switch_info["key"]):
-                                continue
+                        # eco/sleep/health always register if parser has the key
+                        preset_switches = {"eco_mode", "quiet_mode", "8heat_mode"}
+                        if switch_type not in preset_switches:
+                            if static_data:
+                                rapid_mode = static_data.get("Super_function")
+                                if switch_type == "rapid_mode" and rapid_mode != "1":
+                                    continue
+                            else:
+                                if not device.status.get(switch_info["key"]):
+                                    continue
                         _LOGGER.info("当前设备: %s: %s",device.feature_code,device.status)
                         #跟cl对齐，去掉200的静音
                         if switch_type == "quiet_mode":
