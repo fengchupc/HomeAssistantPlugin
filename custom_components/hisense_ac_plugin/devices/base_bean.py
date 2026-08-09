@@ -155,6 +155,12 @@ class BaseBeanParser(BaseDeviceParser):
                     },
                     read_write="RW"
                 ),
+                "t_temp_in": DeviceAttribute(
+                    key="t_temp_in",
+                    name="面板温度",
+                    attr_type="Number",
+                    read_write="R"
+                ),
                 "t_eco": DeviceAttribute(
                     key="t_eco",
                     name="节能模式",

@@ -823,18 +823,13 @@ class HisenseSensor(CoordinatorEntity, SensorEntity):
     @property
     def available(self) -> bool:
         """Return if entity is available."""
-        if not super().available:  # 继承父类的可用性检查（设备在线）
-            return False
-        current_mode = self._device.get_status_value(StatusKey.MODE)  # 使用正确键名
-        # 判断自动模式
-        if current_mode in ["3"]:
-            _LOGGER.debug("设备处于自动模式，温度控制不可用")
+        if not super().available:
             return False
         if self._sensor_type == "f_zone2water_temp2":
+            current_mode = self._device.get_status_value(StatusKey.MODE)
             allowed_modes = {"0", "6"}  # 仅允许制热和制热+制热水模式
             if current_mode not in allowed_modes:
                 return False
-
         return True
 
     @property

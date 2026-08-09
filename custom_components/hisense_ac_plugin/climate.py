@@ -768,17 +768,10 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
             else:
                 return
 
-            supported_properties: dict[str, str] = {}
-            for key, value in properties.items():
-                if self._parser and self._parser.attributes.get(key):
-                    supported_properties[key] = value
-                elif not self._parser:
-                    supported_properties[key] = value
-
-            if supported_properties:
+            if properties:
                 await self.coordinator.async_control_device(
                     puid=self._device_id,
-                    properties=supported_properties,
+                    properties=properties,
                 )
         except Exception as err:
             _LOGGER.error("Failed to set preset mode: %s", err)
