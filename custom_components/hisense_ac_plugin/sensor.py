@@ -688,12 +688,26 @@ async def async_setup_entry(
             _LOGGER.debug("Processing device for sensors: %s", device.to_dict())
             if isinstance(device, HisenseDeviceInfo) and device.is_devices():
                 # Add sensors for each supported feature
+                parser = coordinator.api_client.parsers.get(device.device_id)
                 for sensor_type, sensor_info in SENSOR_TYPES.items():
                     # Check if the device supports this attribute
-                    parser = coordinator.api_client.parsers.get(device.device_id)
-                    if device.has_attribute(sensor_info["key"],parser):
-                        if device.status.get("f_zone2_select") == "0" and sensor_type == "f_zone2water_temp2":
+                    if sensor_type == "panel_temperature":
+                        panel_supported = "t_temp_in" in (device.status or {}) or (
+                            parser and "t_temp_in" in getattr(parser, "attributes", {})
+                        )
+                        if not panel_supported:
                             continue
+                    elif sensor_type == "indoor_temperature":
+                        indoor_supported = "f_temp_in" in (device.status or {}) or (
+                            parser and "f_temp_in" in getattr(parser, "attributes", {})
+                        )
+                        if not indoor_supported:
+                            continue
+                    elif not device.has_attribute(sensor_info["key"], parser):
+                        continue
+
+                    if device.status.get("f_zone2_select") == "0" and sensor_type == "f_zone2water_temp2":
+                        continue
                         _LOGGER.info(
                             "Adding  sensor for device    %s: %s",
                             device.feature_code,

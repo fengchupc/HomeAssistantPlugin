@@ -555,6 +555,7 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
                 | ClimateEntityFeature.SWING_MODE
                 | ClimateEntityFeature.TURN_ON
                 | ClimateEntityFeature.TURN_OFF
+                | ClimateEntityFeature.PRESET_MODE
         )
 
         # 新增类型检查：仅type为009的设备支持风向功能
