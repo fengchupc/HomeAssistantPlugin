@@ -28,20 +28,30 @@ from .const import (
 )
 from .models import DeviceInfo as HisenseDeviceInfo
 from .coordinator import HisenseACPluginDataUpdateCoordinator
+from .temperature import resolve_current_temperature
 
 _LOGGER = logging.getLogger(__name__)
 
 # Define sensor types
 SENSOR_TYPES = {
-    # "indoor_temperature": {
-    #     "key": StatusKey.TEMPERATURE,
-    #     "name": "Indoor Temperature",
-    #     "icon": "mdi:thermometer",
-    #     "device_class": SensorDeviceClass.TEMPERATURE,
-    #     "state_class": SensorStateClass.MEASUREMENT,
-    #     "unit": UnitOfTemperature.CELSIUS,
-    #     "description": "Current indoor temperature"
-    # },
+    "panel_temperature": {
+        "key": "t_temp_in",
+        "name": "面板温度",
+        "icon": "mdi:thermometer",
+        "device_class": SensorDeviceClass.TEMPERATURE,
+        "state_class": SensorStateClass.MEASUREMENT,
+        "unit": UnitOfTemperature.CELSIUS,
+        "description": "Current control panel temperature"
+    },
+    "indoor_temperature": {
+        "key": "f_temp_in",
+        "name": "内机温度",
+        "icon": "mdi:thermometer",
+        "device_class": SensorDeviceClass.TEMPERATURE,
+        "state_class": SensorStateClass.MEASUREMENT,
+        "unit": UnitOfTemperature.CELSIUS,
+        "description": "Current indoor unit temperature"
+    },
     "power_consumption": {
         "key": StatusKey.CONSUMPTION,  # 使用设备特定的键名
         "name": "Power Consumption",
@@ -844,10 +854,27 @@ class HisenseSensor(CoordinatorEntity, SensorEntity):
         """Return the sensor value."""
         if not self._device:
             return None
+
+        if self._sensor_type == "panel_temperature":
+            value, _ = resolve_current_temperature(self._device)
+            if value is not None:
+                return value
+            return None
+
+        if self._sensor_type == "indoor_temperature":
+            value, source = resolve_current_temperature(self._device)
+            if source == "f_temp_in" and value is not None:
+                return value
+            if source == "t_temp_in" and value is not None:
+                return None
+            if value is not None:
+                return value
+            return None
+
         value = self._device.get_status_value(self._sensor_key)
         if value is None:
             return None
-            
+
         try:
             # Convert to float for numeric sensors
             if self._attr_device_class in [
