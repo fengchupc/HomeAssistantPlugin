@@ -117,6 +117,7 @@ class StatusKey:
     ECO = "t_eco"
     SLEEP = "t_sleep"
     HEALTH = "t_health"
+    PURIFY = "t_purify"
     EIGHT_HEAT = "t_8_heat"
     ENERGY = "f_electricity"  # Changed to match actual API response
     WATER_TEMP = "t_water_temp"

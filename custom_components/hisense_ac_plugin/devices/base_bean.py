@@ -178,16 +178,19 @@ class BaseBeanParser(BaseDeviceParser):
                     name="睡眠模式",
                     attr_type="Enum",
                     step=1,
-                    value_range="0,1",
+                    value_range="0,1,2,3,4",
                     value_map={
-                        "0": "关闭",
-                        "1": "开启"
+                        "0": "Off",
+                        "1": "General",
+                        "2": "For kid",
+                        "3": "For old",
+                        "4": "For young",
                     },
                     read_write="RW"
                 ),
-                "t_health": DeviceAttribute(
-                    key="t_health",
-                    name="健康模式",
+                "t_purify": DeviceAttribute(
+                    key="t_purify",
+                    name="净化模式",
                     attr_type="Enum",
                     step=1,
                     value_range="0,1",

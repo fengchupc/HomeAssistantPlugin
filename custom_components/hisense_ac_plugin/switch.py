@@ -28,45 +28,38 @@ _LOGGER = logging.getLogger(__name__)
 SWITCH_TYPES = {
     "quiet_mode": {
         "key": StatusKey.QUIET,
-        "name": "Quiet mode",
+        "name": "Fan mute",
         "icon_on": "mdi:volume-off",
         "icon_off": "mdi:volume-high",
         "description": "Toggle quiet mode"
     },
     "rapid_mode": {
         "key": StatusKey.RAPID,
-        "name": "Powerful mode",
+        "name": "Super",
         "icon_on": "mdi:speedometer",
         "icon_off": "mdi:speedometer-slow",
         "description": "Toggle powerful mode"
     },
     "8heat_mode": {
         "key": StatusKey.EIGHTHEAT,
-        "name": "8° heat",
-        "icon_on": "mdi:fire",
-        "icon_off": "mdi:fire-off",
-        "description": "Toggle 8° heat mode"
+        "name": "Frost protection",
+        "icon_on": "mdi:snowflake-thermometer",
+        "icon_off": "mdi:snowflake-off",
+        "description": "Toggle frost protection mode"
     },
     "eco_mode": {
         "key": StatusKey.ECO,
-        "name": "Eco mode",
+        "name": "Eco",
         "icon_on": "mdi:leaf",
         "icon_off": "mdi:leaf-off",
         "description": "Toggle eco mode"
     },
-    "sleep_mode": {
-        "key": StatusKey.SLEEP,
-        "name": "Sleep mode",
-        "icon_on": "mdi:sleep",
-        "icon_off": "mdi:sleep-off",
-        "description": "Toggle sleep mode"
-    },
-    "health_mode": {
-        "key": StatusKey.HEALTH,
-        "name": "Health mode",
-        "icon_on": "mdi:heart-pulse",
-        "icon_off": "mdi:heart-off",
-        "description": "Toggle health mode"
+    "purifier_mode": {
+        "key": StatusKey.PURIFY,
+        "name": "Purifier",
+        "icon_on": "mdi:air-purifier",
+        "icon_off": "mdi:air-purifier-off",
+        "description": "Toggle purifier mode"
     }
 }
 
@@ -187,7 +180,7 @@ async def async_setup_entry(
                 parser = coordinator.api_client.parsers.get(device.device_id)
 
                 # Add switches for each supported feature
-                preset_switches = {"eco_mode", "quiet_mode", "8heat_mode", "sleep_mode", "health_mode"}
+                preset_switches = {"eco_mode", "quiet_mode", "8heat_mode", "purifier_mode"}
                 for switch_type, switch_info in SWITCH_TYPES.items():
                     if switch_type not in preset_switches and not device.has_attribute(switch_info["key"], parser):
                         continue
