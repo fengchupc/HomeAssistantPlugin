@@ -522,10 +522,8 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
         # 新增逻辑：如果风速模式数量<=1（仅自动模式），则隐藏风速设置
         if len(self._attr_swing_modes) <= 1:
             features &= ~ClimateEntityFeature.SWING_MODE
-        # 根据当前模式决定是否支持目标温度设置
+        # Always expose target temperature so HA automations can use climate.set_temperature.
         current_mode = self.hvac_mode
-        if current_mode not in [HVACMode.COOL, HVACMode.HEAT]:
-            features &= ~ClimateEntityFeature.TARGET_TEMPERATURE
 
         # 在除湿模式下禁止设置风速
         if current_mode == HVACMode.DRY:
@@ -539,12 +537,6 @@ class HisenseClimate(CoordinatorEntity, ClimateEntity):
 
     async def async_set_temperature(self, **kwargs) -> None:
         """Set new target temperature."""
-        # 检查当前模式是否允许设置温度
-        current_mode = self.hvac_mode
-        if current_mode in [HVACMode.FAN_ONLY, HVACMode.DRY, HVACMode.AUTO]:
-            _LOGGER.debug("Temperature setting is not allowed in current mode: %s", current_mode)
-            return
-
         temperature = kwargs.get(ATTR_TEMPERATURE)
         _LOGGER.debug("温度下发: %s: %s", kwargs,temperature)
         if temperature is None:
